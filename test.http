@@ -6,4 +6,13 @@ http://localhost:3000/login/devicecode
 
 ###
 
-http://localhost:3000/login/devicecode/DYJJ3V7DQ
+http://localhost:3000/login/devicecode/zzz
+
+###
+
+http://localhost:3000/login/oauth
+
+###
+
+# oauth callback URL
+http://localhost:3000/

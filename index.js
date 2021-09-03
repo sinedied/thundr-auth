@@ -1,15 +1,21 @@
 const express = require('express');
 const restAzure = require("ms-rest-azure");
+const adal = require('adal-node');
 const crypto = require("crypto");
 
+const azureConstants = require('ms-rest-azure/lib/constants');
+const { AzureEnvironment } = restAzure;
+
 const port = process.env.PORT || 3000;
-const apiPrefix = '/api';
-const redirectUrl = process.env.SERVER_URL || 'http://localhost:3000/oauth/callback'
+const redirectUrl = (process.env.SERVER_URL || 'http://localhost:3000');// + '/oauth/callback';
 const deviceLoginUrl = 'https://microsoft.com/devicelogin';
 
-const getLoginUrl = (state) => `https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46&redirect_uri=${redirectUrl}&state=${state}=https://management.core.windows.net/&prompt=select_account`;
+const getLoginUrl = (state) => `https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46&redirect_uri=${redirectUrl}&state=${state}&resource=https://management.core.windows.net/&prompt=select_account`;
 const getState = () => crypto.randomBytes(10).toString('hex');
 const getDeviceCode = (str) => /enter the code (.*?) to authenticate/.exec(str)[1];
+
+// Active auth requests
+const activeAuthRequests = {};
 
 // Device code <> auth credentials
 const savedCredentials = {};
@@ -75,6 +81,40 @@ app.get('/login/devicecode/:code', (req, res) => {
     return res.sendStatus(404);
   }
   res.json(savedCredentials[code]);
+});
+
+app.get('/login/oauth', (req, res) => {
+  const state = getState();
+  const loginUrl = getLoginUrl(state);
+  activeAuthRequests[state] = true;
+  res.redirect(loginUrl);
+});
+
+// OAuth callback, exchange code for token
+// Works only be on root path with localhost as redirectUrl
+app.get('/', (req, res) => {
+  const code = req.query.code;
+  const state = req.query.state;
+
+  if (!activeAuthRequests[state]) {
+    return res.status(404).send('Not found');
+  }
+  delete activeAuthRequests[state];
+
+  const replyUrl = redirectUrl;;
+  let authorityUrl = AzureEnvironment.Azure.activeDirectoryEndpointUrl + azureConstants.AAD_COMMON_TENANT;
+  const context = new adal.AuthenticationContext(authorityUrl, AzureEnvironment.Azure.validateAuthority, new adal.MemoryCache());
+  context.acquireTokenWithAuthorizationCode(code, replyUrl, AzureEnvironment.Azure.activeDirectoryResourceId, azureConstants.DEFAULT_ADAL_CLIENT_ID, undefined, (err, creds) => {
+    if (err) {
+      console.error(err);
+      return res.status(400).send(err);
+    }
+
+    // Do something with the token
+    console.log(creds);
+
+    res.json('Auth success');
+  });
 });
 
 // Start the server
