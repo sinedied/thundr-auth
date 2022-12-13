@@ -2,6 +2,8 @@ const express = require('express');
 const restAzure = require("ms-rest-azure");
 const adal = require('adal-node');
 const crypto = require("crypto");
+const { DeviceCodeCredential, DefaultAzureCredential, InteractiveBrowserCredential } = require("@azure/identity");
+const { SecretClient } = require("@azure/keyvault-secrets");
 
 const azureConstants = require('ms-rest-azure/lib/constants');
 const { AzureEnvironment } = restAzure;
@@ -36,6 +38,26 @@ const interceptDeviceCode = (cb) => {
     oldConsoleLog(...args);
   };
 };
+
+app.get('/login/devicecode2', async (req, res) => {
+  console.log('trying to get device code...');
+  let authorityUrl = AzureEnvironment.Azure.activeDirectoryEndpointUrl + azureConstants.AAD_COMMON_TENANT;
+  let credential = new DeviceCodeCredential({
+    tenantId:'common',
+    clientId: azureConstants.DEFAULT_ADAL_CLIENT_ID,
+    // In this scenario you may also omit this parameter since the default behavior is to log the message to the console
+    userPromptCallback: (deviceCodeInfo) => {
+      console.log({ deviceCodeInfo });
+    },
+  });
+  // // console.log({ credential });
+  // // await credential.getToken([], { authority: authorityUrl });
+  // const client = new SecretClient(`https://key-vault-name.vault.azure.net`, credential);
+  // await client.getSecret('secret-name');
+  // const credential = new DefaultAzureCredential();
+  const token = await credential.getToken(AzureEnvironment.Azure.activeDirectoryResourceId + '/.default');
+  // console.log({ token });
+});
 
 // Login with device code
 app.get('/login/devicecode', (req, res) => {
